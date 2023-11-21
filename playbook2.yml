@@ -1,0 +1,58 @@
+---
+- name: Paigalda Apache2 ja PostgreSQL
+  hosts: virtualmachines
+  become: true
+  tasks:
+    - name: Määra paketinimi ja teenus vastavalt distributsioonile
+      set_fact:
+        apache_package_name: "{{ 'apache2' if ansible_os_family == 'Debian' else 'httpd' }}"
+        apache_service_name: "{{ 'apache2' if ansible_os_family == 'Debian' else 'httpd' }}"
+        postgresql_package_name: "{{ 'postgresql' if ansible_os_family == 'Debian' else 'postgresql-server' }}"
+        postgresql_service_name: "{{ 'postgresql' if ansible_os_family == 'Debian' else 'postgresql' }}"
+
+    - name: Paigalda Apache2
+      ansible.builtin.package:
+        name: "{{ apache_package_name }}"
+        state: present
+      become: true
+
+    - name: Käivita Apache2
+      ansible.builtin.service:
+        name: "{{ apache_service_name }}"
+        state: started
+      become: true
+
+    - name: Paigalda PostgreSQL
+      ansible.builtin.package:
+        name: "{{ postgresql_package_name }}"
+        state: present
+      become: true
+
+    - name: Käivita PostgreSQL
+      ansible.builtin.service:
+        name: "{{ postgresql_service_name }}"
+        state: started
+      become: true
+      ignore_errors: yes
+
+    - name: Näita teenuse PostgreSQL veateated
+      ansible.builtin.shell: systemctl status postgresql.service
+      become: true
+      register: postgres_status
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Näita teenuse PostgreSQL veateated (journalctl)
+      ansible.builtin.shell: journalctl -xeu postgresql.service
+      become: true
+      register: postgres_journal
+      changed_when: false
+      ignore_errors: yes
+
+    - debug:
+        var: postgres_status.stdout_lines
+      when: "'postgresql' in postgres_status.stderr or 'postgresql' in postgres_status.stdout"
+
+    - debug:
+        var: postgres_journal.stdout_lines
+      when: "'postgresql' in postgres_journal.stderr or 'postgresql' in postgres_journal.stdout"

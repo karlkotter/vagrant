@@ -1,0 +1,21 @@
+---
+- name: Paigalda tulemüür (firewalld)
+  hosts: virtualmachines
+  become: true
+  tasks:
+    - name: Kontrolli, kas tulemüür on paigaldatud
+      ansible.builtin.shell: "which firewalld"
+      register: firewall_check
+      ignore_errors: true
+
+    - name: Paigalda tulemüür, kui see puudub
+      ansible.builtin.package:
+        name: firewalld
+        state: present
+      when: "'firewalld' not in firewall_check.stderr"
+
+    - name: Käivita tulemüür
+      ansible.builtin.service:
+        name: firewalld
+        state: started
+      when: "'firewalld' not in firewall_check.stderr"
